@@ -1,36 +1,12 @@
 // worker.js
-// This worker processes user activity events and aggregates statistics
-// It runs every 100ms to process incoming events from a queue
+const EventSource = require('./data-source');
+
+const SESSION_TIMEOUT = 3000;
 
 class UserActivityProcessor {
   constructor() {
-    this.userSessions = new Map(); // Stores user session data
+    this.userSessions = new Map();
     this.processedEvents = 0;
-  }
-
-  // Simulates getting events from a queue
-  getNextBatch() {
-    // Simulate random user events
-    const events = [];
-    const eventTypes = ['login', 'click', 'navigation', 'api_call', 'logout'];
-    const numEvents = Math.floor(Math.random() * 1_000_000) + 500_000;
-
-    for (let i = 0; i < numEvents; i++) {
-      events.push({
-        userId: Math.floor(Math.random() * 100000).toString(),
-        type: eventTypes[Math.floor(Math.random() * eventTypes.length)],
-        timestamp: Date.now(),
-        data: {
-          path: '/some/random/path',
-          metadata: {
-            browser: 'Chrome',
-            version: '120.0.0',
-          },
-        },
-      });
-    }
-
-    return events;
   }
 
   processEvent(event) {
@@ -42,11 +18,8 @@ class UserActivityProcessor {
     }
 
     const session = this.userSessions.get(event.userId);
-
-    // Update last activity
     session.lastActivity = event.timestamp;
 
-    // Add to history
     session.history.push({
       type: event.type,
       timestamp: event.timestamp,
@@ -54,39 +27,42 @@ class UserActivityProcessor {
     });
   }
 
-  cleanupOldSessions() {
+  expireSessions() {
     const now = Date.now();
-    const SESSION_TIMEOUT = 3000;
-
-    let cleanUpCount = 0;
 
     for (const [userId, session] of this.userSessions.entries()) {
       if (now - session.lastActivity > SESSION_TIMEOUT) {
         this.userSessions.delete(userId);
-        cleanUpCount++;
       }
     }
-
-    console.log(`Cleaned up ${cleanUpCount} old sessions`);
   }
 
-  processBatch() {
-    const events = this.getNextBatch();
-    events.forEach((event) => this.processEvent(event));
-    this.processedEvents += events.length;
+  async fetchAndProcessBatch() {
+    try {
+      const jsonBatch = await EventSource.fetchNextBatch();
+      const events = JSON.parse(jsonBatch);
 
-    console.log(
-      `Processed ${this.processedEvents} events. Active sessions: ${this.userSessions.size}`,
-    );
+      events.forEach((event) => this.processEvent(event));
+      this.processedEvents += events.length;
+
+      this.expireSessions();
+
+      console.log(
+        `Processed ${this.processedEvents} events. Active sessions: ${this.userSessions.size}`,
+      );
+    } catch (error) {
+      console.error('Error processing batch:', error);
+    }
   }
 }
 
 // Start the worker
 const processor = new UserActivityProcessor();
 
-setInterval(() => processor.processBatch(), 10);
-setInterval(() => processor.cleanupOldSessions(), 3000);
+// Process events every 500ms
+setInterval(() => processor.fetchAndProcessBatch(), 500);
 
+// Memory usage monitoring
 setInterval(() => {
   const usage = process.memoryUsage();
   const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
