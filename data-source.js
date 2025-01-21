@@ -1,6 +1,3 @@
-// data-source.js
-const crypto = require('crypto');
-
 const EVENTS_PER_SECOND = 1000;
 
 // Simulates a data source API endpoint or queue

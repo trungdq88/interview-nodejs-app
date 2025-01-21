@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node worker.js"
+    "start": "node server.js"
   },
   "devDependencies": {
     "prettier": "^3.4.2"
