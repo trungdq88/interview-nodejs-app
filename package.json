@@ -9,5 +9,7 @@
   "devDependencies": {
     "prettier": "^3.4.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "express": "^4.21.2"
+  }
 }

@@ -1,6 +1,8 @@
-// worker.js
+const express = require('express');
+const app = express();
 const EventSource = require('./data-source');
 
+const PORT = process.env.PORT || 9769;
 const SESSION_TIMEOUT = 3000;
 
 class UserActivityProcessor {
@@ -62,9 +64,16 @@ const processor = new UserActivityProcessor();
 // Process events every 500ms
 setInterval(() => processor.fetchAndProcessBatch(), 500);
 
-// Memory usage monitoring
-setInterval(() => {
-  const usage = process.memoryUsage();
-  const heapUsedMB = Math.round(usage.heapUsed / 1024 / 1024);
-  console.log('Memory usage:', heapUsedMB, 'MB');
-}, 5000);
+// Set up Express routes
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+app.get('/events', (req, res) => {
+  res.json({ processedEvents: processor.processedEvents });
+});
+
+// Start the Express server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
